@@ -5,6 +5,7 @@ import urllib2
 import os, sys, time
 import argparse
 import tempfile
+import shodan
 from smb.SMBHandler import SMBHandler
 from smb.SMBConnection import SMBConnection
 import signal, time
@@ -23,8 +24,14 @@ GR = '\033[1;37m'  # gray
 current_path = os.path.dirname(os.path.realpath(__file__))
 separate = "/" # use for linux
 host = "http://j3ssiej.co.nf"
-version = '1.0'
+version = '2.0'
 DEAULT_TIMEOUT = 2
+
+# if not os.path.exists('output'):
+#     os.makedirs('ouput')
+
+SHODAN_API_KEY = '1tOhM34UtYswEchEStcXwIgCdO1SzVlx'
+api = shodan.Shodan(SHODAN_API_KEY)
 
 # list_target = []
 list_open = []
@@ -172,10 +179,14 @@ def timed_out(timeout):
 class jSmb(object):
 	"""docstring for jSmb"""
 	def __init__(self, list_target, argv):
+		self.open_folder = {}
 		self.list_target = list_target
 		self.service = argv['port']
 		self.filename = argv['output']
+
+		# print self.filename
 		self.check_smb()
+		self.check_smbfolder()
 		self.export_output()
 
 	def check_smb(self):
@@ -184,6 +195,41 @@ class jSmb(object):
 				self.connect_smb(ip)
 			except TimedOutExc:
 				print("{2}[{4}]{3} {0} {1} ==> {2}Authenthication required. ".format(ip, W, R, C, self.service))
+		print('{}'.format(P)+ '=' * 60)
+
+	def check_smbfolder(self):
+		for ip in list_open:
+			self.open_folder[ip] = []
+
+		shodan_output = []
+		for ip in list_open:
+			host = api.host(ip)
+			for item in host['data']:
+				if item['port'] == 445:
+					shodan_output = 'Port: 445\n' + item['data']
+			lines = shodan_output.split('\n')
+
+			folder = []
+			line = lines.index('Shares')
+			list_folder = lines[line + 3:]
+			list_folder = [i.strip() for i in list_folder]
+			
+			for item in list_folder:
+				folder.append(str(item.split(' ')[0]))
+			if '' in folder: 
+				folder.remove('')
+			if '\n' in folder: 
+				folder.remove('\n')
+			for directory in folder:
+				try:
+					self.connect_folder(ip,directory)
+				except TimedOutExc:
+					print("{2}[{4}]{3} {0}/{5}{1} ==> {2}Authenthication required. ".format(ip, W, R, C, self.service, directory))
+
+			# output_folder = {ip for ip in list_open}
+			# print self.open_folder
+			
+			print('\n')
 
 	@timed_out(DEAULT_TIMEOUT)
 	def connect_smb(self, ip):
@@ -197,17 +243,26 @@ class jSmb(object):
 		except:
 			print("{2}[{4}]{3} {0} {1} ==> {2}Authenthication required. ".format(ip, W, R, C, self.service))
 
+	@timed_out(DEAULT_TIMEOUT)	
+	def connect_folder(self, ip, directory):
+		try:
+			conn = SMBConnection('guest', '', '', '', use_ntlm_v2 = True)
+			assert conn.connect(ip, 445)
+			conn.listPath(directory,'/')
+			self.open_folder[ip].append(directory)
+			print("{2}[{4}]{3} {0}/{5}{1} ==> {2}Target seems to can access. ".format(ip, W, G, C, self.service, directory))
+		except:
+			print("{2}[{4}]{3} {0}/{5}{1} ==> {2}Authenthication required. ".format(ip, W, R, C, self.service, directory))
+
+
 
 	def export_output(self):
 		print('{}'.format(P)+ '=' * 60)
 		with open('output' + separate + self.filename, "w+") as o:
-			for ip in list_open:
-				o.write(ip + '\n')
+			for k, v in self.open_folder.items():
+			 	o.write(str(k) + ' ==> ' + str(v) + '\n')
 		print("{0}[{1}*{0}] Check output in: {2}{3} ".format(G, R, B, current_path + separate + 'output' + separate + self.filename))
 		print('{}'.format(P)+ '=' * 60)
-
-
-
 
 if __name__ == '__main__':
 	main()
