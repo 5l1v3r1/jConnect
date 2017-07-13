@@ -27,9 +27,16 @@ host = "http://j3ssiej.co.nf"
 version = '2.0'
 DEAULT_TIMEOUT = 2
 
+<<<<<<< HEAD
 with open('SHODAN_API_KEY') as k: # get api key from file SHODAN_API_KEY
 	SHODAN_API_KEY = k.read().strip()
 	SHODAN_API_KEY = SHODAN_API_KEY.replace('\n','')
+=======
+# if not os.path.exists('output'):
+#     os.makedirs('ouput')
+
+SHODAN_API_KEY = 'SHODAN_API_HERE'
+>>>>>>> e36a7c1b7eff9157ec4260f419c38aaee12a6e69
 api = shodan.Shodan(SHODAN_API_KEY)
 
 list_open = []
