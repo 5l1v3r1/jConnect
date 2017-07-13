@@ -18,8 +18,8 @@ Check service on target
 # Required
 - Python 2.7
 - Pip
-- [pysmb](http://shodan.readthedocs.io/en/latest/index.html)
-- [masscan](http://shodan.readthedocs.io/en/latest/index.html)
+- [pysmb](https://pythonhosted.org/pysmb/api/smb_SMBConnection.html)
+- [masscan](https://github.com/robertdavidgraham/masscan)
 
 # Contact
 - [j3ssiej.co.nf](http://j3ssiej.co.nf)
