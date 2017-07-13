@@ -30,7 +30,7 @@ DEAULT_TIMEOUT = 2
 # if not os.path.exists('output'):
 #     os.makedirs('ouput')
 
-SHODAN_API_KEY = '1tOhM34UtYswEchEStcXwIgCdO1SzVlx'
+SHODAN_API_KEY = 'SHODAN_API_HERE'
 api = shodan.Shodan(SHODAN_API_KEY)
 
 # list_target = []
