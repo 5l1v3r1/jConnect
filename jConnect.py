@@ -127,7 +127,7 @@ def handle_input(argv):
 	if argv['target'] != 'None':
 		try:
 			print('{}'.format(P)+ '=' * 80 + GR)
-			command = 'masscan {0} -p{1} --wait 0 -oL {2}'.format(argv['target'], argv['port'], argv['output'])
+			command = 'sudo masscan {0} -p{1} --wait 0 -oL {2}'.format(argv['target'], argv['port'], argv['output'])
 			os.system(command)
 			print('{}'.format(P)+ '=' * 80)
 			with open(argv['output']) as f:
@@ -151,7 +151,7 @@ def handle_input(argv):
 		for range_ip in list_target_raw:
 			try:
 				print('{}'.format(P)+ '=' * 80 + GR)
-				command = 'masscan {0} -p{1} --wait 0 -oL {2}'.format(range_ip, argv['port'], argv['output'])
+				command = 'sudo masscan {0} -p{1} --wait 0 -oL {2}'.format(range_ip, argv['port'], argv['output'])
 				os.system(command)
 				print('{}'.format(P)+ '=' * 80)
 				with open(argv['output']) as f:
