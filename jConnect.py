@@ -22,12 +22,15 @@ C = '\033[1;36m'  # cyan
 GR = '\033[1;37m'  # gray
 
 current_path = os.path.dirname(os.path.realpath(__file__))
+if not os.path.exists('output'):
+	os.makedirs('output')
 separate = "/" # use for linux
 host = "http://j3ssiej.co.nf"
-version = '2.0'
+version = '2.1'
 DEAULT_TIMEOUT = 2
 
 # SHODAN_API_KEY = 'SHODAN_API_HERE'
+
 with open('SHODAN_API_KEY') as k: # get api key from file SHODAN_API_KEY
 	SHODAN_API_KEY = k.read().strip()
 	SHODAN_API_KEY = SHODAN_API_KEY.replace('\n','')
@@ -39,7 +42,8 @@ argv = {
 	'target' : '',
 	'port' : '',
 	'output' : '',
-	'raw_input' : ''
+	'raw_input' : '',
+	'range_input' : ''
 }
 
 def banner():
@@ -90,7 +94,8 @@ def main():
 	parser.add_argument('--target' , action='store', dest='TARGET', help='Enter IP or range of IP of target')
 	parser.add_argument('--port', action='store', dest='PORT', help='Enter port of target')
 	parser.add_argument('--write', action='store', dest='OUTPUT', help='Enter name of output')
-	parser.add_argument('--raw_input', action='store', dest='RAW_INPUT', help='Enter name of target file')
+	parser.add_argument('--raw_input', action='store', dest='RAW_INPUT', help='Enter name of IP file')
+	parser.add_argument('--range_input', action='store', dest='RANGE_INPUT', help='Enter name of range IP file')
 	parser.add_argument('--version', action='version', version='%(prog)s {}'.format(version))
 	results = parser.parse_args()
 
@@ -101,6 +106,8 @@ Usage: jConnect.py [-h] [--target IP] [--port PORT] [--write OUTPUT] [--raw_inpu
 Example: $python jConnect.py --target="14.171.21.132/24" --port="445" --write="test"
 	 
 	 $python jConnect.py --raw_input="data.txt" --port="445" --write="data"
+
+	 $python jConnect.py --range_input="data.txt" --port="445" --write="data"
 		  {2}""".format(G, B, W))
 		exit(0)
 
@@ -108,17 +115,19 @@ Example: $python jConnect.py --target="14.171.21.132/24" --port="445" --write="t
 	argv['port'] = str(results.PORT)
 	argv['output'] = str(results.OUTPUT)
 	argv['raw_input'] = str(results.RAW_INPUT)
+	argv['range_input'] = str(results.RANGE_INPUT)
 
 	list_target = handle_input(argv)
+	# print list_target
 	smb = jSmb(list_target,argv)
 	print("{}".format(W))
 
 def handle_input(argv):
 	list_target = []
-	if argv['raw_input'] == 'None':
+	if argv['target'] != 'None':
 		try:
 			print('{}'.format(P)+ '=' * 80 + GR)
-			command = 'masscan {0} -p{1} -oL {2}'.format(argv['target'], argv['port'], argv['output'])
+			command = 'masscan {0} -p{1} --wait 0 -oL {2}'.format(argv['target'], argv['port'], argv['output'])
 			os.system(command)
 			print('{}'.format(P)+ '=' * 80)
 			with open(argv['output']) as f:
@@ -130,8 +139,33 @@ def handle_input(argv):
 					list_target.append(list_data[i].split(' ')[3])
 			return list_target
 		except:
-			print("{2}[!]{1} No target open port {3}{0}. \n".format( argv['port'], W, R, C))
+			print("{2}[!]{1} No target open port {3}{0}. \n".format( argv['port'], W, B, C))
 			exit(0)
+
+	elif argv['range_input'] != 'None':
+		with open(argv['range_input']) as f:
+			list_range = f.readlines()
+			list_range = [ip.strip() for ip in list_range]
+			list_target_raw = [ip.replace('\n','') for ip in list_range]
+		# print list_target_raw
+		for range_ip in list_target_raw:
+			try:
+				print('{}'.format(P)+ '=' * 80 + GR)
+				command = 'masscan {0} -p{1} --wait 0 -oL {2}'.format(range_ip, argv['port'], argv['output'])
+				os.system(command)
+				print('{}'.format(P)+ '=' * 80)
+				with open(argv['output']) as f:
+					list_data = f.readlines()
+					list_data.remove('#masscan\n')
+					list_data.remove('# end\n')
+
+					for i in xrange(len(list_data)):
+						list_target.append(list_data[i].split(' ')[3])
+			except:
+				print("{2}[!]{1} No target open port {3}{0}{1} in range {2}{4}. \n".format( argv['port'], W, R, C, range_ip))
+		print list_target
+		return list_target
+
 
 	else:
 		with open(argv['raw_input']) as f:
@@ -194,6 +228,7 @@ class jSmb(object):
 		self.export_output()
 
 	def check_smb(self):
+		print('{}'.format(P)+ '=' * 60)
 		for ip in self.list_target:
 			try:
 				self.connect_smb(ip)
@@ -202,39 +237,40 @@ class jSmb(object):
 		print('{}'.format(P)+ '=' * 60)
 
 	def check_smbfolder(self):
-		try:
-			for ip in list_open:
-				self.open_folder[ip] = []
+		# try:
 
-			shodan_output = []
-			for ip in list_open:
-				host = api.host(ip)
-				for item in host['data']:
-					if item['port'] == 445:
-						shodan_output = 'Port: 445\n' + item['data']
-				lines = shodan_output.split('\n')
+		for ip in list_open:
+			self.open_folder[ip] = []
 
-				folder = []
-				line = lines.index('Shares')
-				list_folder = lines[line + 3:]
-				list_folder = [i.strip() for i in list_folder]
-				
-				for item in list_folder:
-					folder.append(str(item.split(' ')[0]))
-				if '' in folder: 
-					folder.remove('')
-				if '\n' in folder: 
-					folder.remove('\n')
-				for directory in folder:
-					try:
-						self.connect_folder(ip,directory)
-					except TimedOutExc:
-						print("{2}[{4}]{3} {0}/{5}{1} ==> {2}Authenthication required. ".format(ip, W, R, C, self.service, directory))
+		shodan_output = []
+		for ip in list_open:
+			host = api.host(ip)
+			for item in host['data']:
+				if item['port'] == 445:
+					shodan_output = 'Port: 445\n' + item['data']
+			lines = shodan_output.split('\n')
 
-				print('\n')
-		except:
-			print("{2}[!]{1} No target open port {3}{0}. \n".format( argv['port'], W, R, C))
-			exit(0)
+			folder = []
+			line = lines.index('Shares')
+			list_folder = lines[line + 3:]
+			list_folder = [i.strip() for i in list_folder]
+			
+			for item in list_folder:
+				folder.append(str(item.split(' ')[0]))
+			if '' in folder: 
+				folder.remove('')
+			if '\n' in folder: 
+				folder.remove('\n')
+			for directory in folder:
+				try:
+					self.connect_folder(ip,directory)
+				except TimedOutExc:
+					print("{2}[{4}]{3} {0}/{5}{1} ==> {2}Authenthication required. ".format(ip, W, R, C, self.service, directory))
+
+			print('\n')
+		# except:
+		# 	print("{2}[!]{1} No target open port {3}{0}. \n".format( argv['port'], W, R, C))
+		# 	exit(0)
 
 	@timed_out(DEAULT_TIMEOUT)
 	def connect_smb(self, ip):
